@@ -1,4 +1,4 @@
-name: Build iOS IPA (Jaras)
+name: Build iOS IPA & Simulator (Jaras)
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
       - name: Generate Xcode Project
         run: xcodegen generate
 
-      - name: Build Unsigned Archive
+      - name: Build Unsigned Device Archive (IPA)
         run: |
           xcodebuild archive \
             -project Jaras.xcodeproj \
@@ -37,8 +37,31 @@ jobs:
           cd build
           zip -r9 Jaras.ipa Payload
 
+      - name: Build iOS Simulator App (for Appetize.io)
+        run: |
+          xcodebuild build \
+            -project Jaras.xcodeproj \
+            -scheme Jaras \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/sim \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+          cd build/sim/Build/Products/Release-iphonesimulator
+          zip -r9 ../../../../Jaras-Simulator.zip Jaras.app
+
       - name: Upload Jaras.ipa Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Jaras-iOS-IPA
           path: build/Jaras.ipa
+
+      - name: Upload Jaras-Simulator.zip Artifact (Appetize.io)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jaras-iOS-Simulator
+          path: build/Jaras-Simulator.zip
