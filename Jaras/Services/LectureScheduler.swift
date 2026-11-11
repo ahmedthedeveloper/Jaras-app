@@ -100,8 +100,7 @@ final class LectureScheduler {
                 guard let self = self else { return }
                 let now = Date()
                 for lecture in lectures {
-                    let delta = now.timeIntervalSince(lecture.alertTime)
-                    if delta >= 0 && delta < 3.0 && !self.firedLectureIds.contains(lecture.id) {
+                    if now >= lecture.alertTime && now < lecture.begin && !self.firedLectureIds.contains(lecture.id) {
                         self.firedLectureIds.insert(lecture.id)
                         NotificationManager.shared.triggerPopup(for: lecture, playChime: true)
                     }

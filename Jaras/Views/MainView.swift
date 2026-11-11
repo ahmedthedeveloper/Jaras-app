@@ -303,6 +303,7 @@ struct MainView: View {
                     Task {
                         _ = await repo.requestAccess()
                         _ = await notifier.requestPermission()
+                        repo.reload()
                     }
                 } label: {
                     HStack(spacing: 10) {
