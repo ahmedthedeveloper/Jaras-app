@@ -82,15 +82,7 @@ struct HeroHeaderView: View {
                     )
                 }
             }
-            .clipShape(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 0,
-                    bottomLeadingRadius: 38,
-                    bottomTrailingRadius: 38,
-                    topTrailingRadius: 0,
-                    style: .continuous
-                )
-            )
+            .clipShape(BottomRoundedShape(radius: 38))
 
             // Foreground Header Content
             VStack(alignment: .leading, spacing: 14) {
@@ -218,5 +210,18 @@ struct HeroHeaderView: View {
             }
         }
         .frame(width: 78, height: 78)
+    }
+}
+
+struct BottomRoundedShape: Shape {
+    var radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let bezier = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: [.bottomLeft, .bottomRight],
+            cornerRadii: CGSize(width: radius, height: radius)
+        )
+        return Path(bezier.cgPath)
     }
 }

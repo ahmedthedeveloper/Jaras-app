@@ -7,13 +7,13 @@ on:
 
 jobs:
   build-ipa:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Ensure XcodeGen is Installed
+        run: which xcodegen || brew install xcodegen
 
       - name: Generate Xcode Project
         run: xcodegen generate
