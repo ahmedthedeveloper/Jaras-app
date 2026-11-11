@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>معاينة جرس الحصص (iOS 17 — Dynamic Island & Live Activity)</title>
+<style>
+  :root {
+    --bg: #0D1512;
+    --card: #16221E;
+    --line: #23332D;
+    --ink: #F2FBF6;
+    --ink-soft: #98ADA3;
+    --ink-faint: #63786F;
+    --primary: #10B981;
+    --primary-deep: #059669;
+    --forest: #047857;
+    --primary-tint: #13382C;
+    --sun: #FBBF24;
+    --sun-light: #FDE68A;
+  }
+  body.light-mode {
+    --bg: #F4F8F6;
+    --card: #FFFFFF;
+    --line: #E1EBE6;
+    --ink: #0F241C;
+    --ink-soft: #566E64;
+    --ink-faint: #8BA399;
+    --primary-tint: #E6F7F0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Dubai', 'Segoe UI', Tahoma, sans-serif; user-select: none; }
+  body {
+    background: radial-gradient(circle at top, #0d261c, #050a08);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #fff;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+    justify-content: center;
+  }
+  .btn-tool {
+    background: #16221E;
+    color: #F2FBF6;
+    border: 1px solid #23332D;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-tool.primary {
+    background: linear-gradient(135deg, #059669, #10B981);
+    border-color: #34D399;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  }
+  .btn-tool:hover { transform: translateY(-2px); }
+
+  /* iPhone 16 Pro Frame */
+  .iphone {
+    width: 390px;
+    height: 820px;
+    background: var(--bg);
+    border-radius: 54px;
+    border: 11px solid #1e2421;
+    box-shadow: 0 28px 70px rgba(0,0,0,0.75), 0 0 0 2px #3b4641;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.3s ease;
+  }
+
+  /* Dynamic Island */
+  .dynamic-island {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 124px;
+    height: 35px;
+    background: #000;
+    border-radius: 24px;
+    z-index: 250;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    transition: all 0.45s cubic-bezier(0.22, 1.35, 0.36, 1);
+    cursor: pointer;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+  }
+  .dynamic-island.active-compact {
+    width: 215px;
+    border: 1px solid rgba(16,185,129,0.45);
+  }
+  .dynamic-island.active-expanded {
+    width: 356px;
+    height: 128px;
+    border-radius: 34px;
+    padding: 16px 18px;
+    flex-direction: column;
+    align-items: stretch;
+    border: 1px solid rgba(52,211,153,0.45);
+  }
+  .di-compact-content {
+    display: none;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .dynamic-island.active-compact .di-compact-content { display: flex; }
+  .di-expanded-content {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+  }
+  .dynamic-island.active-expanded .di-expanded-content { display: flex; }
+
+  /* Hero Header */
+  .hero {
+    background: linear-gradient(225deg, #047857 0%, #059669 50%, #10B981 100%);
+    padding: 62px 22px 24px;
+    border-bottom-left-radius: 38px;
+    border-bottom-right-radius: 38px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,211,153,0.32), transparent 70%);
+    top: -40px;
+    left: -40px;
+  }
+  .hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+  }
+  .greeting { font-size: 15px; color: rgba(255,255,255,0.85); }
+  .hero-title { font-size: 29px; font-weight: 800; color: #fff; }
+  .settings-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+  }
+  .date-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.16);
+    padding: 5px 12px;
+    border-radius: 99px;
+    font-size: 13px;
+    margin-top: 10px;
+    color: #fff;
+  }
+  .glass-card {
+    margin-top: 14px;
+    background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.28);
+    border-radius: 26px;
+    padding: 16px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .next-tag { font-size: 13px; font-weight: 700; color: var(--sun-light); }
+  .next-name { font-size: 22px; font-weight: 800; color: #fff; margin: 3px 0; }
+  .next-meta { font-size: 13.5px; color: rgba(255,255,255,0.88); }
+
+  /* Live Activity Delivery Card on Screen */
+  .live-activity-banner {
+    margin: 14px 18px 0;
+    background: #101C17;
+    border: 1.5px solid #10B981;
+    border-radius: 24px;
+    padding: 14px 16px;
+    box-shadow: 0 12px 28px rgba(4,120,87,0.35);
+    display: none;
+    animation: slideDown 0.4s cubic-bezier(0.22, 1.3, 0.36, 1);
+  }
+  .live-activity-banner.visible { display: block; }
+  .la-progress-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 99px;
+    overflow: hidden;
+    margin: 10px 0 6px;
+  }
+  .la-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #34D399, #10B981);
+    width: 0%;
+    border-radius: 99px;
+    transition: width 0.4s linear;
+  }
+
+  /* Started Notification Banner */
+  .started-toast {
+    position: absolute;
+    top: 54px;
+    left: 16px;
+    right: 16px;
+    background: rgba(16, 28, 23, 0.96);
+    border: 1.5px solid #34D399;
+    border-radius: 22px;
+    padding: 14px 16px;
+    z-index: 240;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 14px 34px rgba(0,0,0,0.6);
+    animation: slideDown 0.38s ease-out;
+  }
+  .started-toast.visible { display: flex; }
+
+  /* Day Strip & Schedule */
+  .days-strip {
+    display: flex;
+    gap: 9px;
+    padding: 16px 18px 8px;
+    overflow-x: auto;
+  }
+  .day-pill {
+    min-width: 58px;
+    height: 78px;
+    border-radius: 20px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--ink);
+  }
+  .day-pill.active {
+    background: var(--primary);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(16,185,129,0.35);
+  }
+  .section-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+  }
+  .section-title { font-size: 19px; font-weight: 800; color: var(--ink); }
+  .count-pill {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--primary-tint);
+    padding: 4px 12px;
+    border-radius: 99px;
+  }
+  .lecture-list {
+    padding: 4px 18px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    overflow-y: auto;
+  }
+  .lecture-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .lecture-card:hover { transform: scale(1.01); }
+  .lecture-badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--primary-tint);
+    padding: 3px 10px;
+    border-radius: 99px;
+    margin-bottom: 6px;
+  }
+  .lecture-name { font-size: 17px; font-weight: 800; color: var(--ink); }
+  .lecture-sub { font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
+
+  /* Full-Screen 3D Green Bell Pop-up Overlay */
+  .popup-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(5,18,9,0.88), rgba(2,6,4,0.96));
+    backdrop-filter: blur(12px);
+    z-index: 220;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .popup-overlay.visible { display: flex; }
+
+  .bell-svg-wrap {
+    width: 195px;
+    height: 195px;
+    z-index: 2;
+    animation: bellDrop 0.6s cubic-bezier(0.22, 1.45, 0.36, 1);
+  }
+  .bell-swing {
+    transform-origin: 50px 10px;
+    animation: ringSwing 1.8s ease-in-out infinite;
+  }
+
+  .capsule-banner {
+    width: 100%;
+    background: linear-gradient(180deg, #16A34A 0%, #15803D 55%, #0D5325 100%);
+    border: 3px solid #FFFFFF;
+    border-radius: 30px;
+    padding: 18px 20px;
+    margin-top: -14px;
+    text-align: center;
+    box-shadow: 0 18px 36px rgba(4, 120, 87, 0.65);
+    z-index: 1;
+    animation: cardRise 0.62s cubic-bezier(0.22, 1.35, 0.36, 1);
+  }
+  .capsule-top-row {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    direction: ltr;
+  }
+  .capsule-headline {
+    font-size: 33px;
+    font-weight: 900;
+    color: #fff;
+    margin-top: 4px;
+  }
+  .capsule-subject {
+    font-size: 17.5px;
+    font-weight: 700;
+    color: #F0FDF4;
+    margin-top: 4px;
+  }
+  .capsule-meta {
+    font-size: 13.5px;
+    color: #BBF7D0;
+    margin-top: 2px;
+  }
+  .ready-btn {
+    margin-top: 20px;
+    width: 220px;
+    height: 52px;
+    border-radius: 99px;
+    background: #FFFFFF;
+    color: #065F46;
+    font-size: 16.5px;
+    font-weight: 800;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(4, 120, 87, 0.55);
+  }
+
+  @keyframes bellDrop {
+    from { opacity: 0; transform: translateY(-60px) scale(0.45); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes cardRise {
+    from { opacity: 0; transform: translateY(70px) scale(0.72); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes ringSwing {
+    0%, 100% { transform: rotate(0deg); }
+    15% { transform: rotate(16deg); }
+    30% { transform: rotate(-14deg); }
+    45% { transform: rotate(10deg); }
+    60% { transform: rotate(-7deg); }
+    75% { transform: rotate(3deg); }
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="btn-tool primary" onclick="triggerBellPopup()">🔔 ١. تجربة نافذة الجرس المنبثقة (قبل ٣ دقائق)</button>
+  <button class="btn-tool" onclick="fastForwardTimer()">⏩ ٢. تسريع انتهاء الـ ٣ دقائق (بدء الحصة)</button>
+  <button class="btn-tool" onclick="toggleTheme()">🌓 تبديل الوضع الداكن / الفاتح</button>
+</div>
+
+<div class="iphone">
+  <!-- Dynamic Island -->
+  <div id="dynamicIsland" class="dynamic-island" onclick="toggleDynamicIslandExpand()">
+    <div class="di-compact-content">
+      <span style="color:#10B981;">🔔 الحصة الثانية</span>
+      <span id="diCountdownCompact" style="color:#34D399; font-variant-numeric: tabular-nums;">٠٣:٠٠</span>
+    </div>
+    <div class="di-expanded-content">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:14.5px; font-weight:800; color:#fff;">اقتراب موعد الحصة الثانية</div>
+          <div style="font-size:12px; color:#BBF7D0;">الرياضيات · قاعة ١٠١</div>
+        </div>
+        <div id="diCountdownExpanded" style="font-size:19px; font-weight:900; color:#34D399;">٠٣:٠٠</div>
+      </div>
+      <div>
+        <div class="la-progress-track" style="margin:6px 0;">
+          <div id="diProgressFill" class="la-progress-fill"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#FDE68A;">
+          <span>🔔 رنّ الجرس</span>
+          <span>📖 تبدأ ٠٨:٠٠ ص</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Class Started Simple Notification Toast -->
+  <div id="startedToast" class="started-toast" onclick="this.classList.remove('visible')">
+    <div style="width:40px;height:40px;border-radius:50%;background:#10B981;display:flex;align-items:center;justify-content:center;font-size:20px;">🔔</div>
+    <div>
+      <div style="font-size:15px;font-weight:800;color:#fff;">بدأت الحصة الثانية الآن</div>
+      <div style="font-size:13px;color:#BBF7D0;">الرياضيات · بالتوفيق والنجاح!</div>
+    </div>
+  </div>
+
+  <!-- Emerald Green Hero Header -->
+  <div class="hero">
+    <div class="hero-top">
+      <div>
+        <div class="greeting">صباح الخير</div>
+        <div class="hero-title">جدول حصصي</div>
+      </div>
+      <button class="settings-btn" onclick="toggleTheme()" title="تبديل المظهر">⚙️</button>
+    </div>
+    <div class="date-chip">📅 الأربعاء، ١١ نوفمبر ٢٠٢٦</div>
+    <div class="glass-card">
+      <div>
+        <div class="next-tag">الحصة الثانية · اليوم</div>
+        <div class="next-name">الرياضيات</div>
+        <div class="next-meta">٠٨:٠٠ ص · بعد ٣ دقائق · قاعة ١٠١</div>
+      </div>
+      <div style="width:68px;height:68px;border-radius:50%;border:5px solid #FBBF24;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <span style="font-size:20px;font-weight:800;">٣</span>
+        <span style="font-size:10px;">دقائق</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Food-Delivery Style Live Activity Progress Card -->
+  <div id="liveActivityCard" class="live-activity-banner">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(180deg,#10B981,#059669);display:flex;align-items:center;justify-content:center;">🔔</div>
+        <div>
+          <div style="font-size:14.5px; font-weight:800; color:#fff;">اقتراب موعد الحصة الثانية</div>
+          <div style="font-size:12.5px; color:#BBF7D0;">الرياضيات · متبقي <span id="laRemainingText">٠٣:٠٠</span></div>
+        </div>
+      </div>
+      <span id="laPercentText" style="font-size:13px; font-weight:800; color:#34D399;">٠٪</span>
+    </div>
+    <div class="la-progress-track">
+      <div id="laProgressFill" class="la-progress-fill"></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:11px; color:rgba(255,255,255,0.75);">
+      <span style="color:#34D399;">✓ تم التنبيه</span>
+      <span style="color:#FDE68A;">📖 تبدأ الحصة ٠٨:٠٠ ص</span>
+    </div>
+  </div>
+
+  <!-- 14-Day Strip -->
+  <div class="days-strip">
+    <div class="day-pill active"><span style="font-size:12px;">اليوم</span><span style="font-size:19px;font-weight:800;">١١</span></div>
+    <div class="day-pill"><span style="font-size:12px;">خميس</span><span style="font-size:19px;font-weight:800;">١٢</span></div>
+    <div class="day-pill"><span style="font-size:12px;">جمعة</span><span style="font-size:19px;font-weight:800;">١٣</span></div>
+    <div class="day-pill"><span style="font-size:12px;">سبت</span><span style="font-size:19px;font-weight:800;">١٤</span></div>
+    <div class="day-pill"><span style="font-size:12px;">أحد</span><span style="font-size:19px;font-weight:800;">١٥</span></div>
+  </div>
+
+  <div class="section-row">
+    <span class="section-title">حصص اليوم</span>
+    <span class="count-pill">٣ حصص</span>
+  </div>
+
+  <div class="lecture-list">
+    <div class="lecture-card" onclick="triggerBellPopup()">
+      <span class="lecture-badge">الحصة الأولى</span>
+      <div class="lecture-name">اللغة العربية</div>
+      <div class="lecture-sub">٠٧:٠٠ – ٠٧:٤٥ ص · ٤٥ دقيقة · قاعة ١٠٢</div>
+    </div>
+    <div class="lecture-card" style="border-color:#10B981;" onclick="triggerBellPopup()">
+      <span class="lecture-badge" style="background:#10B981;color:#fff;">الحصة الثانية · تنبيه القرب</span>
+      <div class="lecture-name">الرياضيات</div>
+      <div class="lecture-sub">٠٨:٠٠ – ٠٨:٤٥ ص · ٤٥ دقيقة · قاعة ١٠١</div>
+    </div>
+    <div class="lecture-card" onclick="triggerBellPopup()">
+      <span class="lecture-badge">الحصة الثالثة</span>
+      <div class="lecture-name">الفيزياء</div>
+      <div class="lecture-sub">٠٩:٠٠ – ٠٩:٤٥ ص · ٤٥ دقيقة · مختبر ٢</div>
+    </div>
+  </div>
+
+  <!-- Full-Screen 3D Green Bell Pop-up -->
+  <div id="popupOverlay" class="popup-overlay">
+    <svg class="bell-svg-wrap" viewBox="0 0 100 100">
+      <defs>
+        <radialGradient id="haloGrad" cx="50%" cy="44%" r="45%">
+          <stop offset="0%" stop-color="#4ADE80" stop-opacity="0.32"/>
+          <stop offset="100%" stop-color="#10B981" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="bellBody" x1="25%" y1="15%" x2="75%" y2="80%">
+          <stop offset="0%" stop-color="#4ADE80"/>
+          <stop offset="28%" stop-color="#22C55E"/>
+          <stop offset="72%" stop-color="#15803D"/>
+          <stop offset="100%" stop-color="#0D5325"/>
+        </linearGradient>
+        <radialGradient id="clapperGrad" cx="45%" cy="45%" r="55%">
+          <stop offset="0%" stop-color="#86EFAC"/>
+          <stop offset="50%" stop-color="#22C55E"/>
+          <stop offset="100%" stop-color="#166534"/>
+        </radialGradient>
+      </defs>
+      <!-- Halo -->
+      <circle cx="50" cy="44" r="44" fill="url(#haloGrad)"/>
+      <!-- Sound Waves -->
+      <path d="M 14 32 A 44 44 0 0 0 12 52" stroke="#22C55E" stroke-width="4.2" stroke-linecap="round" fill="none"/>
+      <path d="M 7 29 A 51 51 0 0 0 5 55" stroke="#22C55E" stroke-width="4.2" stroke-linecap="round" stroke-opacity="0.7" fill="none"/>
+      <path d="M 86 32 A 44 44 0 0 1 88 52" stroke="#22C55E" stroke-width="4.2" stroke-linecap="round" fill="none"/>
+      <path d="M 93 29 A 51 51 0 0 1 95 55" stroke="#22C55E" stroke-width="4.2" stroke-linecap="round" stroke-opacity="0.7" fill="none"/>
+
+      <g class="bell-swing">
+        <!-- Crown -->
+        <path d="M 42 17 C 42 6, 58 6, 58 17" stroke="#22C55E" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+        <!-- Clapper -->
+        <circle cx="50" cy="85" r="8.5" fill="url(#clapperGrad)"/>
+        <circle cx="48.5" cy="83" r="2.2" fill="#FFFFFF" fill-opacity="0.88"/>
+        <!-- Bell Body -->
+        <path d="M 50 15 C 34 15, 27 28, 27 44 C 27 58, 24 66, 16 73 C 13.5 75.5, 15 80, 19.5 80 L 80.5 80 C 85 80, 86.5 75.5, 84 73 C 76 66, 73 58, 73 44 C 73 28, 66 15, 50 15 Z" fill="url(#bellBody)"/>
+        <!-- Shine -->
+        <path d="M 38 24 C 33 33, 31 43, 31 56" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+        <!-- White MoE Medallion -->
+        <circle cx="50" cy="44" r="18.5" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+        <!-- MoE Dots -->
+        <g fill="#047857">
+          <circle cx="43" cy="36.5" r="0.85"/><circle cx="46.5" cy="35" r="0.85"/><circle cx="50" cy="34.5" r="0.85"/><circle cx="53.5" cy="35" r="0.85"/><circle cx="57" cy="36.5" r="0.85"/>
+          <circle cx="41.5" cy="39" r="0.85"/><circle cx="45" cy="37.8" r="0.85"/><circle cx="48.2" cy="37" r="0.85"/><circle cx="51.8" cy="37" r="0.85"/><circle cx="55" cy="37.8" r="0.85"/><circle cx="58.5" cy="39" r="0.85"/>
+          <circle cx="45" cy="42" r="0.85"/><circle cx="48" cy="41" r="0.85"/><circle cx="52" cy="41" r="0.85"/><circle cx="55" cy="42" r="0.85"/>
+        </g>
+        <text x="50" y="48.5" text-anchor="middle" fill="#047857" font-size="4.5" font-weight="bold">وزارة التعليم</text>
+        <text x="50" y="52.5" text-anchor="middle" fill="#64748B" font-size="2.3">Ministry of Education</text>
+      </g>
+    </svg>
+
+    <div class="capsule-banner">
+      <div class="capsule-top-row">
+        <span style="font-size:22px;">📖</span>
+        <span style="width:2px;height:20px;background:rgba(255,255,255,0.85);display:inline-block;"></span>
+        <span style="font-size:23px;font-weight:800;color:#fff;">بـدء</span>
+      </div>
+      <div class="capsule-headline">الحصة الثانية</div>
+      <svg width="190" height="14" viewBox="0 0 190 14" style="margin: 2px auto 6px; display:block;">
+        <path d="M 15 11 Q 95 2 175 11" stroke="#FBBF24" stroke-width="3.8" stroke-linecap="round" fill="none"/>
+      </svg>
+      <div class="capsule-subject">الرياضيات</div>
+      <div class="capsule-meta">تبدأ ٠٨:٠٠ ص  ·  قاعة ١٠١</div>
+    </div>
+
+    <button class="ready-btn" onclick="closePopupAndStartDeliveryTimer()">حاضر، أنا جاهز!</button>
+  </div>
+</div>
+
+<script>
+  const eastern = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+  function toAr(numStr) {
+    return String(numStr).replace(/[0-9]/g, d => eastern[d]);
+  }
+
+  function playChimeWebAudio() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const notes = [880, 1174.66];
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.25, ctx.currentTime + idx * 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.22 + 0.65);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + idx * 0.22);
+        osc.stop(ctx.currentTime + idx * 0.22 + 0.65);
+      });
+    } catch (e) {}
+  }
+
+  let timerInterval = null;
+  let totalSeconds = 180;
+  let remainingSeconds = 180;
+
+  function triggerBellPopup() {
+    document.getElementById('startedToast').classList.remove('visible');
+    document.getElementById('popupOverlay').classList.add('visible');
+    playChimeWebAudio();
+  }
+
+  function closePopupAndStartDeliveryTimer() {
+    document.getElementById('popupOverlay').classList.remove('visible');
+    remainingSeconds = 180;
+    const di = document.getElementById('dynamicIsland');
+    di.classList.remove('active-expanded');
+    di.classList.add('active-compact');
+    document.getElementById('liveActivityCard').classList.add('visible');
+    updateDeliveryUI();
+
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      remainingSeconds--;
+      if (remainingSeconds <= 0) {
+        fastForwardTimer();
+      } else {
+        updateDeliveryUI();
+      }
+    }, 1000);
+  }
+
+  function updateDeliveryUI() {
+    const m = Math.floor(remainingSeconds / 60);
+    const s = remainingSeconds % 60;
+    const formatted = toAr((m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s));
+    const pct = Math.min(100, Math.max(0, Math.round(((totalSeconds - remainingSeconds) / totalSeconds) * 100)));
+
+    document.getElementById('diCountdownCompact').textContent = formatted;
+    document.getElementById('diCountdownExpanded').textContent = formatted;
+    document.getElementById('laRemainingText').textContent = formatted;
+    document.getElementById('laPercentText').textContent = toAr(pct) + '٪';
+    document.getElementById('laProgressFill').style.width = pct + '%';
+    document.getElementById('diProgressFill').style.width = pct + '%';
+  }
+
+  function toggleDynamicIslandExpand() {
+    const di = document.getElementById('dynamicIsland');
+    if (!di.classList.contains('active-compact') && !di.classList.contains('active-expanded')) return;
+    di.classList.toggle('active-compact');
+    di.classList.toggle('active-expanded');
+  }
+
+  function fastForwardTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('popupOverlay').classList.remove('visible');
+    document.getElementById('liveActivityCard').classList.remove('visible');
+    const di = document.getElementById('dynamicIsland');
+    di.classList.remove('active-compact', 'active-expanded');
+    document.getElementById('startedToast').classList.add('visible');
+    playChimeWebAudio();
+  }
+
+  function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+  }
+</script>
+</body>
+</html>

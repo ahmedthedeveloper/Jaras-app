@@ -1,0 +1,44 @@
+name: Build iOS IPA (Jaras)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        run: xcodegen generate
+
+      - name: Build Unsigned Archive
+        run: |
+          xcodebuild archive \
+            -project Jaras.xcodeproj \
+            -scheme Jaras \
+            -configuration Release \
+            -archivePath build/Jaras.xcarchive \
+            -sdk iphoneos \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package IPA for Sideloadly / AltStore
+        run: |
+          mkdir -p build/Payload
+          cp -r build/Jaras.xcarchive/Products/Applications/Jaras.app build/Payload/
+          cd build
+          zip -r9 Jaras.ipa Payload
+
+      - name: Upload Jaras.ipa Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jaras-iOS-IPA
+          path: build/Jaras.ipa

@@ -1,0 +1,76 @@
+name: Jaras
+options:
+  bundleIdPrefix: app.jaras
+  deploymentTarget:
+    iOS: "16.2"
+  developmentLanguage: ar
+
+targets:
+  Jaras:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.2"
+    sources:
+      - path: Jaras
+        excludes:
+          - "App/Info.plist"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.jaras.ios
+        INFOPLIST_FILE: Jaras/App/Info.plist
+        MARKETING_VERSION: 1.0.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: 5.9
+        TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: JarasWidget
+        embed: true
+      - target: JarasNotificationContent
+        embed: true
+
+  JarasWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.2"
+    sources:
+      - path: JarasWidget
+        excludes:
+          - "Info.plist"
+      - path: Jaras/Models/ActivityAttributes.swift
+      - path: Jaras/Theme/Ar.swift
+      - path: Jaras/Theme/Colors.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.jaras.ios.widget
+        INFOPLIST_FILE: JarasWidget/Info.plist
+        MARKETING_VERSION: 1.0.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: 5.9
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+
+  JarasNotificationContent:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.2"
+    sources:
+      - path: JarasNotificationContent
+        excludes:
+          - "Info.plist"
+      - path: Jaras/Theme/Ar.swift
+      - path: Jaras/Theme/Colors.swift
+      - path: Jaras/Views/Components/GreenBellView.swift
+      - path: Jaras/Views/Components/GoldenArcView.swift
+      - path: Jaras/Views/Components/CapsuleBannerView.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.jaras.ios.notification-content
+        INFOPLIST_FILE: JarasNotificationContent/Info.plist
+        MARKETING_VERSION: 1.0.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: 5.9
+    dependencies:
+      - sdk: UserNotifications.framework
+      - sdk: UserNotificationsUI.framework
+      - sdk: SwiftUI.framework
