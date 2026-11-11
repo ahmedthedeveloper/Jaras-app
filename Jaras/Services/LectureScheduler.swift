@@ -10,32 +10,44 @@ final class LectureScheduler {
 
     private var foregroundWatchTimer: Timer?
     private var firedLectureIds: Set<String> = []
+    private var lastScheduledSignature: String = ""
 
     private init() {}
 
     func scheduleUpcoming(lectures: [Lecture]) {
+        let now = Date()
+        // iOS allows up to 64 pending local notifications; schedule the next 28 upcoming lectures (56 requests)
+        let upcoming = Array(
+            lectures
+                .filter { $0.begin > now }
+                .sorted { $0.begin < $1.begin }
+                .prefix(28)
+        )
+
+        //Always keep the 1-second watcher updated with the latest upcoming lectures
+        startForegroundWatcher(lectures: upcoming)
+
+        // Avoid cancelling and re-adding identical pending notifications every 10 seconds
+        let signature = upcoming.map { "\($0.id)_\($0.ordinal)_\(Int($0.begin.timeIntervalSince1970))" }.joined(separator: "|")
+        guard signature != lastScheduledSignature else { return }
+        lastScheduledSignature = signature
+
         let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests()
 
-        let now = Date()
-        // iOS allows up to 64 pending local notifications; schedule the next 28 upcoming lectures (56 requests)
-        let upcoming = lectures
-            .filter { $0.begin > now }
-            .sorted { $0.begin < $1.begin }
-            .prefix(28)
-
         for lecture in upcoming {
             // 1. Schedule T-3m Bell Alert
-            if lecture.alertTime > now {
+            let alertDelay = lecture.alertTime.timeIntervalSince(now)
+            if alertDelay > 1.0 {
                 let alertContent = UNMutableNotificationContent()
-                alertContent.title = "بـدء \(Ar.lecture(lecture.ordinal))"
+                alertContent.title = "🔔 بـدء \(Ar.lecture(lecture.ordinal))"
                 var meta = "تبدأ \(Ar.time(lecture.begin))"
                 if !lecture.location.isEmpty {
                     meta += " · \(lecture.location)"
                 }
                 alertContent.subtitle = lecture.title
-                alertContent.body = meta
-                alertContent.sound = UNNotificationSound(named: UNNotificationSoundName("bell.wav"))
+                alertContent.body = "\(meta) — اضغط لفتح جرس الحصص"
+                alertContent.sound = NotificationManager.notificationSound()
                 alertContent.categoryIdentifier = NotificationManager.alertCategoryId
                 alertContent.userInfo = [
                     "ordinal": lecture.ordinal,
@@ -45,15 +57,11 @@ final class LectureScheduler {
                     "isPreAlert": true
                 ]
                 if #available(iOS 15.0, *) {
-                    alertContent.interruptionLevel = .timeSensitive
+                    alertContent.interruptionLevel = .active
                     alertContent.relevanceScore = 1.0
                 }
 
-                let comps = Calendar.current.dateComponents(
-                    [.year, .month, .day, .hour, .minute, .second],
-                    from: lecture.alertTime
-                )
-                let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1.0, alertDelay), repeats: false)
                 let req = UNNotificationRequest(
                     identifier: "jaras.alert.\(lecture.id)",
                     content: alertContent,
@@ -63,34 +71,31 @@ final class LectureScheduler {
             }
 
             // 2. Schedule T-0m "Class Started" Notification
-            let startContent = UNMutableNotificationContent()
-            startContent.title = "بدأت \(Ar.lecture(lecture.ordinal)) الآن"
-            startContent.body = "\(lecture.title) · بالتوفيق والنجاح!"
-            startContent.sound = UNNotificationSound(named: UNNotificationSoundName("bell.wav"))
-            startContent.userInfo = [
-                "ordinal": lecture.ordinal,
-                "title": lecture.title,
-                "begin": lecture.begin.timeIntervalSince1970,
-                "isPreAlert": false
-            ]
-            if #available(iOS 15.0, *) {
-                startContent.interruptionLevel = .timeSensitive
+            let startDelay = lecture.begin.timeIntervalSince(now)
+            if startDelay > 1.0 {
+                let startContent = UNMutableNotificationContent()
+                startContent.title = "بدأت \(Ar.lecture(lecture.ordinal)) الآن"
+                startContent.body = "\(lecture.title) · بالتوفيق والنجاح!"
+                startContent.sound = NotificationManager.notificationSound()
+                startContent.userInfo = [
+                    "ordinal": lecture.ordinal,
+                    "title": lecture.title,
+                    "begin": lecture.begin.timeIntervalSince1970,
+                    "isPreAlert": false
+                ]
+                if #available(iOS 15.0, *) {
+                    startContent.interruptionLevel = .active
+                }
+
+                let startTrigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1.0, startDelay), repeats: false)
+                let startReq = UNNotificationRequest(
+                    identifier: "jaras.start.\(lecture.id)",
+                    content: startContent,
+                    trigger: startTrigger
+                )
+                center.add(startReq)
             }
-
-            let startComps = Calendar.current.dateComponents(
-                [.year, .month, .day, .hour, .minute, .second],
-                from: lecture.begin
-            )
-            let startTrigger = UNCalendarNotificationTrigger(dateMatching: startComps, repeats: false)
-            let startReq = UNNotificationRequest(
-                identifier: "jaras.start.\(lecture.id)",
-                content: startContent,
-                trigger: startTrigger
-            )
-            center.add(startReq)
         }
-
-        startForegroundWatcher(lectures: Array(upcoming))
     }
 
     private func startForegroundWatcher(lectures: [Lecture]) {

@@ -16,10 +16,18 @@ struct JarasApp: App {
                 .preferredColorScheme(theme.isDarkMode ? .dark : .light)
                 .environment(\.locale, Ar.locale)
                 .environment(\.layoutDirection, .rightToLeft)
+                .task {
+                    _ = await notifier.requestPermission()
+                    repo.checkAuthorization()
+                }
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {
+                        SoundManager.shared.startBackgroundKeepAlive()
                         repo.reload()
                         Task { await notifier.refreshAuthorizationStatus() }
+                    } else if newPhase == .background {
+                        SoundManager.shared.startBackgroundKeepAlive()
+                        repo.reload()
                     }
                 }
         }

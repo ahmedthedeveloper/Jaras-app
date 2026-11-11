@@ -3,11 +3,14 @@ import Foundation
 import SwiftUI
 
 /// Reads synced Google Calendar / iOS Calendar events via EventKit, numbers each day's classes
-/// in chronological order, and schedules upcoming 3-minute bell alerts.
+/// in chronological order, listens for live calendar changes in the background, and schedules
+/// upcoming 3-minute bell alerts.
 @MainActor
 final class CalendarRepo: ObservableObject {
     private let store = EKEventStore()
     private let prefsKey = "excluded_calendars"
+    private var storeObserver: NSObjectProtocol?
+    private var syncTimer: Timer?
 
     @Published var hasPermission: Bool = false
     @Published var calendars: [CalendarSource] = []
@@ -15,6 +18,15 @@ final class CalendarRepo: ObservableObject {
     @Published var nextLecture: Lecture?
 
     init() {
+        storeObserver = NotificationCenter.default.addObserver(
+            forName: .EKEventStoreChanged,
+            object: store,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.reload()
+            }
+        }
         checkAuthorization()
     }
 
@@ -26,6 +38,8 @@ final class CalendarRepo: ObservableObject {
             hasPermission = (status == .authorized)
         }
         if hasPermission {
+            SoundManager.shared.startBackgroundKeepAlive()
+            startPeriodicSyncTimer()
             reload()
         }
     }
@@ -40,12 +54,23 @@ final class CalendarRepo: ObservableObject {
             }
             hasPermission = granted
             if granted {
+                SoundManager.shared.startBackgroundKeepAlive()
+                startPeriodicSyncTimer()
                 reload()
             }
             return granted
         } catch {
             hasPermission = false
             return false
+        }
+    }
+
+    private func startPeriodicSyncTimer() {
+        guard syncTimer == nil else { return }
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.reload()
+            }
         }
     }
 
